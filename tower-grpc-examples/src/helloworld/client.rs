@@ -8,11 +8,21 @@ use tower_util::MakeService;
 
 use std::error::Error;
 
+
+// use tower_grpc::codegen::client::grpc::GrpcService;
+
 pub mod hello_world {
     include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
 }
 
-fn make_client(uri: http::Uri) -> Result<Box<dyn Future<Item=hello_world::client::Greeter<Box<dyn tower_grpc::codegen::client::grpc::GrpcService<(), ResponseBody=(), Future=(), Error=()>>>, Error=tower_grpc::Status> + Send>, Box<dyn Error>> {
+type Client = hello_world::client::Greeter<tower_request_modifier::RequestModifier<tower_hyper::client::Connection<tower_grpc::BoxBody>, tower_grpc::BoxBody>>;
+
+fn make_client(uri: http::Uri) -> Result<Box<dyn Future<Item=Client, Error=tower_grpc::Status> + Send>, Box<dyn Error>> {
+// where T:  tower_service::Service<http::Request<B>> {
+
+// Result<Box<dyn Future<Item=hello_world::client::Greeter<T>, Error=tower_grpc::Status> + Send>, Box<dyn Error>> 
+//   where T: GrpcService<R>,
+//            tower_grpc::codegen::client::grpc::unary::Once<M>: tower_grpc::client::Encodable<R> {
     let dst = Destination::try_from_uri(uri.clone())?;
     let connector = util::Connector::new(HttpConnector::new(4));
     let settings = client::Builder::new().http2_only(true).clone();
@@ -30,7 +40,7 @@ fn make_client(uri: http::Uri) -> Result<Box<dyn Future<Item=hello_world::client
                 .unwrap();
 
             // Wait until the client is ready...
-            Greeter::new(Box::new(conn)).ready()
+            Greeter::new(conn).ready()
         });
     Ok(Box::new(say_hello))
 }
